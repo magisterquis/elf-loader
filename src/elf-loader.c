@@ -39,7 +39,13 @@ void validate_elf(void *p, size_t sz) {
         die("not a static executable (ET_EXEC required)");
     }
 
+#if defined(__x86_64__)
     if (eh->e_machine != EM_X86_64) {
+#elif defined(__aarch64__)
+    if (eh->e_machine != EM_AARCH64) {
+#else
+#error "Unsupported architecture"
+#endif
         die("invalid architecture");
     }
 }
@@ -249,6 +255,7 @@ void load_and_run(const char *filename, int argc, char **argv, char **envp)
     void (*entry)(void) = (void (*)(void))eh->e_entry;
 
 	// transfer control
+#if defined(__x86_64__)
     __asm__ __volatile__(
           "mov %0, %%rsp\n"      // set Stack Pointer
           "xor %%rbp, %%rbp\n"
@@ -258,6 +265,19 @@ void load_and_run(const char *filename, int argc, char **argv, char **envp)
           : "D"(sp), "a"(entry)
           : "memory", "cc", "rdx", "rsi", "rcx", "rbx" // for clobbering
           );
+#elif defined(__aarch64__)
+    __asm__ __volatile__(
+          "mov sp, %[sp]\n"
+          "mov x0, 0\n"
+          "mov %[sp], 0\n"
+          "blr %[entry]\n"
+          :
+          : [sp] "r" (sp), [entry] "r" (entry)
+          : "memory", "x0"
+          );
+#else
+#error "Unsupported architecture"
+#endif
 }
 
 int main(int argc, char **argv, char **envp) {
