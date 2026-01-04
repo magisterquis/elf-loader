@@ -11,8 +11,6 @@
 #include <sys/random.h>
 #include <elf.h>
 
-#define STACK_ALIGN (16)
-
 static void die(const char *msg) {
     perror(msg);
     _exit(1);
@@ -246,14 +244,6 @@ void load_and_run(const char *filename, int argc, char **argv, char **envp)
     // push argc
     sp -= sizeof(uintptr_t);
     *(uintptr_t *)sp = argc;
-
-    // Make sure the stack is 16-byte aligned.
-    uintptr_t mv = sp % STACK_ALIGN;
-    if ((sp - mv) < (uintptr_t)stack) {
-            die("stack too large to align");
-    }
-    memmove((void *)(sp - mv), (void *)sp, STACK_SIZE - (sp - (uintptr_t)stack));
-    sp -= mv;
 
 	// set entry point
     void (*entry)(void) = (void (*)(void))eh->e_entry;
